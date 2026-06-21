@@ -26,9 +26,10 @@ jobs:
       - name: Install Deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python openjdk-11-jdk-headless ccache ninja-build \
-            libncurses5 libc6-dev-i386 lib32stdc++6 libnss3-dev libssl-dev libgbm-dev \
-            libxcomposite-dev libxdamage-dev libxrandr-dev libpci-dev libxkbcommon-dev
+          sudo apt-get install -y python3 openjdk-11-jdk-headless ccache ninja-build \
+            libc6-dev-i386 lib32stdc++6 libnss3-dev libssl-dev libgbm-dev \
+            libxcomposite-dev libxdamage-dev libxrandr-dev libpci-dev libxkbcommon-dev \
+            libasound2-dev libxshmfence-dev libdrm-dev
             
       - name: Checkout CIPD
         uses: actions/checkout@v4
