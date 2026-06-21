@@ -1,0 +1,19 @@
+# Build outputs
+*.pyc
+out/
+Debug/
+Release/
+
+# Depot tools
+depot_tools/
+
+# Cache
+.ccache/
+.cipd/
+
+# IDE
+.idea/
+.vscode/
+
+# Mac
+.DS_Store
