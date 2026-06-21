@@ -1,144 +1,94 @@
-# DevBrowser - Minimal Surgical Build
-# Uses Kiwi's existing structure, optimized for speed
+# DevBrowser - Based on Kiwi Browser CI
+# Uses the proven Kiwi Browser build system
 
-name: DevBrowser CI
+name: DevBrowser Build
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
   workflow_dispatch:
-    inputs:
-      arch:
-        description: 'Architecture'
-        required: false
-        default: 'arm64'
-        type: choice
-        options: [arm, arm64, x86, x64]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  JAVA_HOME: /usr/lib/jvm/openjdk-11
-  DEPOT_TOOLS: ${{ github.workspace }}/depot_tools
+  push:
+    branches: [ main ]
 
 jobs:
-  build:
-    name: Build (${{ inputs.arch || 'arm64' }})
+  build-arm64:
     runs-on: ubuntu-20.04
-    
-    # Timeout otimizado
-    timeout-minutes: 120
+    timeout-minutes: 180
     
     steps:
-      # 1. Setup básico
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          lfs: false
-
-      # 2. Limpar espaço (CRÍTICO para GitHub Actions)
+          
       - name: Free Space
         run: |
           sudo swapoff -a
           sudo rm -f /swapfile
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
-          df -h /
-
-      # 3. Instalar dependências
+          
       - name: Install Deps
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            python3 openjdk-11-jdk-headless \
-            ninja-build ccache \
-            libnss3-dev libssl-dev libgbm-dev \
-            libxcomposite-dev libxdamage-dev libxrandr-dev \
-            libc6-dev-i386 lib32stdc++6
-
-      # 4. Depot tools
-      - name: Depot Tools
-        run: |
-          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
-          echo "${{ github.workspace }}/depot_tools" >> $GITHUB_PATH
-
-      # 5. Cache inteligente (a mágica que faz builds rápidos)
-      - name: Cache
-        uses: actions/cache@v4
+          sudo apt-get update
+          sudo apt-get install -y python openjdk-11-jdk-headless ccache ninja-build \
+            libncurses5 libc6-dev-i386 lib32stdc++6 libnss3-dev libssl-dev libgbm-dev \
+            libxcomposite-dev libxdamage-dev libxrandr-dev libpci-dev libxkbcommon-dev
+            
+      - name: Checkout CIPD
+        uses: actions/checkout@v4
         with:
-          path: |
-            ~/.ccache
-            out/${{ inputs.arch || 'arm64' }}
-          key: devbrowser-${{ runner.os }}-${{ inputs.arch || 'arm64' }}-${{ hashFiles('DEPS', 'chrome/android/java/**') }}
-          restore-keys: |
-            devbrowser-${{ runner.os }}-${{ inputs.arch || 'arm64' }}-
-
-      # 6. Sync deps
-      - name: Sync
+          repository: kiwibrowser/dependencies
+          path: ./.cipd
+          
+      - name: Link CIPD
         run: |
-          gclient sync -D --nohooks --no-history 2>&1 | tail -5
-
-      # 7. Build deps
+          ln -s $GITHUB_WORKSPACE/./.cipd ..
+          cp ../.cipd/.gclient ..
+          cp ../.cipd/.gclient_entries ..
+          
+      - name: Create directories
+        run: |
+          mkdir -p secondary_disk/.ccache
+          mkdir -p secondary_disk/out/android_arm64
+          mkdir -p secondary_disk/.cipd
+          
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+        
+      - name: Sync deps
+        run: |
+          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
+          gclient sync -D --nohooks --no-history 2>&1 | tail -10
+          
       - name: Build Deps
         run: |
-          ./build/install-build-deps.sh --android --no-chromeos-fonts 2>&1 | tail -3
-
-      # 8. Config GN
+          bash install-build-deps.sh --no-chromeos-fonts
+          
       - name: Configure
         run: |
-          mkdir -p out/release
-          cat > out/release/args.gn << 'EOF'
-          target_os = "android"
-          target_cpu = "${{ inputs.arch || 'arm64' }}"
-          is_debug = false
-          is_official_build = true
-          android_channel = "stable"
-          dcheck_always_on = false
-          symbol_level = 0
-         EOF
-          gn gen out/release
-
-      # 9. Build com ccache
+          mkdir -p out/android_arm64
+          cat > out/android_arm64/args.gn << 'EOF'
+target_os = "android"
+target_cpu = "arm64"
+is_debug = false
+is_official_build = true
+android_channel = "stable"
+dcheck_always_on = false
+symbol_level = 0
+EOF
+          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
+          gn gen out/android_arm64
+          
       - name: Build
         run: |
+          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
+          export CCACHE_DIR=$GITHUB_WORKSPACE/secondary_disk/.ccache
           ccache -M 10G
           ccache -z
-          ninja -C out/release -j$(nproc) -l$(nproc) \
-            chrome_android_apk 2>&1 | tail -30
+          ninja -C out/android_arm64 -j$(nproc) -l$(nproc) chrome_android_apk 2>&1 | tail -50
           ccache -s
-
-      # 10. Upload APK
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: devbrowser-${{ inputs.arch || 'arm64' }}-${{ github.run_number }}
-          path: |
-            out/release/apks/*.apk
-            out/release/*.so
+          name: devbrowser-arm64
+          path: out/android_arm64/*.apk
           retention-days: 7
 
-  # Release only on main
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          path: ./release
-          merge-multiple: true
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: release/*.apk
-          draft: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
