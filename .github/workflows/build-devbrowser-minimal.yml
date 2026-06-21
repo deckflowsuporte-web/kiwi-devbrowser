@@ -51,11 +51,7 @@ jobs:
       - name: Sync deps
         run: |
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
-          gclient sync -D --nohooks --no-history 2>&1 | tail -10
-          
-      - name: Build Deps
-        run: |
-          bash install-build-deps.sh --no-chromeos-fonts
+          gclient sync -D --nohooks --no-history 2>&1 | tail -20
           
       - name: Configure
         run: |
