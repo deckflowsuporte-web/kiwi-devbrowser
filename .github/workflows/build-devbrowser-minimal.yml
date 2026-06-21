@@ -43,6 +43,10 @@ jobs:
           cp ../.cipd/.gclient ..
           cp ../.cipd/.gclient_entries ..
           
+      - name: Clone Depot Tools
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $GITHUB_WORKSPACE/depot_tools
+          
       - name: Create directories
         run: |
           mkdir -p secondary_disk/.ccache
@@ -51,13 +55,15 @@ jobs:
       - name: Sync deps
         run: |
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
+          echo "PATH=$PATH" 
+          which gn || echo "gn not found"
           gclient sync -D --nohooks --no-history 2>&1 | tail -20
           
       - name: Configure
         run: |
+          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
           mkdir -p out/android_arm64
           printf 'target_os = "android"\ntarget_cpu = "arm64"\nis_debug = false\nis_official_build = true\nandroid_channel = "stable"\ndcheck_always_on = false\nsymbol_level = 0\n' > out/android_arm64/args.gn
-          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
           gn gen out/android_arm64
           
       - name: Build
