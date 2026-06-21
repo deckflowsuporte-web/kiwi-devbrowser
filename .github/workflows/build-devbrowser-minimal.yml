@@ -64,15 +64,7 @@ jobs:
       - name: Configure
         run: |
           mkdir -p out/android_arm64
-          cat > out/android_arm64/args.gn << 'EOF'
-target_os = "android"
-target_cpu = "arm64"
-is_debug = false
-is_official_build = true
-android_channel = "stable"
-dcheck_always_on = false
-symbol_level = 0
-EOF
+          printf 'target_os = "android"\ntarget_cpu = "arm64"\nis_debug = false\nis_official_build = true\nandroid_channel = "stable"\ndcheck_always_on = false\nsymbol_level = 0\n' > out/android_arm64/args.gn
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
           gn gen out/android_arm64
           
