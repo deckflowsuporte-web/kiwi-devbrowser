@@ -43,13 +43,16 @@ jobs:
           cp ../.cipd/.gclient ..
           cp ../.cipd/.gclient_entries ..
           
-      - name: Clone Depot Tools and Setup
+      - name: Setup Depot Tools
         run: |
-          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $GITHUB_WORKSPACE/depot_tools
-          echo 'export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"' >> $GITHUB_ENV
+          if [ ! -d "$GITHUB_WORKSPACE/depot_tools" ]; then
+            git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $GITHUB_WORKSPACE/depot_tools
+          fi
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
-          which gn
-          gclient sync -D --nohooks 2>&1 | tail -10
+          chmod +x $GITHUB_WORKSPACE/depot_tools/gn*
+          export DEPOT_TOOLS_UPDATE=0
+          gclient
+          ls -la $GITHUB_WORKSPACE/depot_tools/
           
       - name: Create directories
         run: |
