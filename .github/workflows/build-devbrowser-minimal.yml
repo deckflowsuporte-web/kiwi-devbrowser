@@ -15,7 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          
+      - name: Checkout CIPD Dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: kiwibrowser/dependencies
+          path: ./dependencies
+          fetch-depth: 0
           
       - name: Free Space
         run: |
@@ -31,29 +38,15 @@ jobs:
             libxcomposite-dev libxdamage-dev libxrandr-dev libpci-dev libxkbcommon-dev \
             libasound2-dev libxshmfence-dev libdrm-dev
             
-      - name: Checkout CIPD
-        uses: actions/checkout@v4
-        with:
-          repository: kiwibrowser/dependencies
-          path: ./.cipd
-          
-      - name: Link CIPD
-        run: |
-          ln -s $GITHUB_WORKSPACE/./.cipd ..
-          cp ../.cipd/.gclient ..
-          cp ../.cipd/.gclient_entries ..
-          
       - name: Setup Depot Tools
         run: |
-          if [ ! -d "$GITHUB_WORKSPACE/depot_tools" ]; then
-            git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $GITHUB_WORKSPACE/depot_tools
-          fi
-          chmod +x $GITHUB_WORKSPACE/depot_tools/gn*
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
+          chmod +x depot_tools/gn*
+          cp dependencies/.gclient .
+          cp dependencies/.gclient_entries .
           export DEPOT_TOOLS_UPDATE=0
-          which python3 || which python
-          gclient sync -D --nohooks 2>&1 | tail -10
-          ls -la $GITHUB_WORKSPACE/depot_tools/*.txt 2>/dev/null || echo "No txt files"
+          gclient sync -D --nohooks 2>&1 | tail -20
           echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
           
       - name: Create directories
