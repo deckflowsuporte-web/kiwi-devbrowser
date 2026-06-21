@@ -1,5 +1,4 @@
 # DevBrowser - Based on Kiwi Browser CI
-# Uses the proven Kiwi Browser build system
 
 name: DevBrowser Build
 
@@ -10,7 +9,7 @@ on:
 
 jobs:
   build-arm64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 180
     
     steps:
@@ -22,7 +21,7 @@ jobs:
         run: |
           sudo swapoff -a
           sudo rm -f /swapfile
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /home/runner/.cache
           
       - name: Install Deps
         run: |
@@ -47,11 +46,7 @@ jobs:
         run: |
           mkdir -p secondary_disk/.ccache
           mkdir -p secondary_disk/out/android_arm64
-          mkdir -p secondary_disk/.cipd
           
-      - name: Install rclone
-        run: curl https://rclone.org/install.sh | sudo bash
-        
       - name: Sync deps
         run: |
           export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
