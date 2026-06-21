@@ -48,11 +48,13 @@ jobs:
           if [ ! -d "$GITHUB_WORKSPACE/depot_tools" ]; then
             git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $GITHUB_WORKSPACE/depot_tools
           fi
-          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
           chmod +x $GITHUB_WORKSPACE/depot_tools/gn*
+          export PATH="$GITHUB_WORKSPACE/depot_tools:$PATH"
           export DEPOT_TOOLS_UPDATE=0
-          gclient
-          ls -la $GITHUB_WORKSPACE/depot_tools/
+          which python3 || which python
+          gclient sync -D --nohooks 2>&1 | tail -10
+          ls -la $GITHUB_WORKSPACE/depot_tools/*.txt 2>/dev/null || echo "No txt files"
+          echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
           
       - name: Create directories
         run: |
